@@ -1,0 +1,2 @@
+# gp_agent_from_scratch
+从0搭建一个基于typescripts的适用于搜索调研的Agent
