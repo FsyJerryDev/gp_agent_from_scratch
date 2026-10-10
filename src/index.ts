@@ -4,14 +4,14 @@ import { createOpenAI } from '@ai-sdk/openai';
 import { createMockModel } from './mock-model';
 import { createInterface } from 'node:readline';
 
-// 本地部署的 OpenAI 兼容模型服务（与 Pi 当前使用同一个 DeepSeek-V4.1-Flash）
-const apiKey = process.env.LLM_API_KEY;
-const baseURL = process.env.LLM_BASE_URL ?? 'https://mas-infer.desaysv.com/v1';
-const modelId = process.env.LLM_MODEL ?? 'DeepSeek-V4.1-Flash';
+const qwen = createOpenAI({
+  baseURL: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
+  apiKey: process.env.DASHSCOPE_API_KEY,
+});
 
-const llm = createOpenAI({ baseURL, apiKey });
-
-const model = apiKey ? llm.chat(modelId) : createMockModel();
+const model = process.env.DASHSCOPE_API_KEY
+  ? qwen.chat('qwen-plus-latest')
+  : createMockModel();
 
 const rl = createInterface({
   input: process.stdin,
