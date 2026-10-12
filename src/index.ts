@@ -1,24 +1,28 @@
 import 'dotenv/config';
-import { streamText, type ModelMessage } from 'ai';
+import { type ModelMessage } from 'ai';
+import { weatherTool, calculatorTool } from './tools/utility-tools';
 import { createOpenAI } from '@ai-sdk/openai';
 import { createMockModel } from './mock-model';
 import { createInterface } from 'node:readline';
+import { agentLoop, type BudgetState } from './agent/loop.js';
 
-const qwen = createOpenAI({
-  baseURL: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
-  apiKey: process.env.DASHSCOPE_API_KEY,
+const llm = createOpenAI({
+  baseURL: process.env.LLM_BASE_URL,
+  apiKey: process.env.LLM_API_KEY,
 });
 
-const model = process.env.DASHSCOPE_API_KEY
-  ? qwen.chat('qwen-plus-latest')
+const model = process.env.LLM_API_KEY
+  ? llm.chat(process.env.LLM_MODEL ?? 'DeepSeek-V4.1-Flash')
   : createMockModel();
 
-const rl = createInterface({
-  input: process.stdin,
-  output: process.stdout,
-});
-
+const tools = { get_weather: weatherTool, calculator: calculatorTool };
 const messages: ModelMessage[] = [];
+const budget: BudgetState = { used: 0, limit: 15000 };
+const rl = createInterface({ input: process.stdin, output: process.stdout });
+
+const SYSTEM = `你是 Super Agent，一个有工具调用能力的 AI 助手。
+需要查询信息时，主动使用工具，不要编造数据。
+回答要简洁直接。`;
 
 function ask() {
   rl.question('\nYou: ', async (input) => {
@@ -31,24 +35,12 @@ function ask() {
 
     messages.push({ role: 'user', content: trimmed });
 
-    const result = streamText({
-      model,
-      messages,
-    });
-
-    process.stdout.write('Assistant: ');
-    let fullResponse = '';
-    for await (const chunk of result.textStream) {
-      process.stdout.write(chunk);
-      fullResponse += chunk;
-    }
-    console.log(); // 换行
-
-    messages.push({ role: 'assistant', content: fullResponse });
+    await agentLoop(model, tools, messages, SYSTEM, budget);
 
     ask();
   });
 }
 
-console.log('Super Agent v0.1 (type "exit" to quit)\n');
+console.log('Super Agent v0.3 — Fuses (type "exit" to quit)\n');
+console.log('试试输入："测试死循环"、"测试重试"、"测试预算" 看三层防护效果\n');
 ask();
